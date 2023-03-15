@@ -1,1 +1,5 @@
 # Arduino-Light-Control
+
+With this, you can control a LED light strip (or any other PWM driven stuff) via 2 Buttons. Just connect the buttons to pin 8 and 9 (or changing button pins at the top of the script) and your led strip (with a suitable driver) to pin 3 (you can change it as well).
+
+You can turn the light on or off by just pressing one off the buttons. To switch between dim settings (also changeable in the code), just press and hold one of the buttons till the leds blink. Hold the button. Now the leds will go through the preconfigured dimming settings one after another. Let go off the button when the desired brightness is presented. It will increase the brightness step by step. When it has reached the top end, it will start at the bottom again. Another way is to hold both of the buttons at the same time and let go ones it blinks. After this you can increase or decrease the brightness by pressing one of the buttons. Here it will again go through the preconfigures dimming settins. A schematic of the electronics will follow soon. I use this for over a year now and it never failed or behaved weird.
