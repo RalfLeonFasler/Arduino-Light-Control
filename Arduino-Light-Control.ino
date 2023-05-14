@@ -8,6 +8,7 @@ const int sleep_timer_1 = 32000; //32000*50ms = ~26min
 const int sleep_timer_2 = 4; //4*26min = 104min -> 104min sleep timer
 
 int on=0;
+int in_super_low=0;
 int value=255;
 int count = 5;
 int timer = 0;
@@ -33,9 +34,9 @@ void loop() {
         timer++;
         delay(10);
         if(timer>=50){  
-          turn = 0;   
-          value = super_low;                                      
-          turn_on(value,0);
+          turn = 0;                                     
+          turn_on(super_low,0);
+          in_super_low=1;
           on=1;
           count =0;
         }
@@ -46,6 +47,7 @@ void loop() {
        int t = (t_s*255)/value;
        if(value == super_low) t = 0;
        turn_on(value,t);
+       in_super_low=0;
        on=1;
       }
       turn =1;
@@ -58,7 +60,7 @@ void loop() {
     else{
       delay(100);
       //Set dimming value by presing both buttons at the same time and then click one of them to increase/descrease the value
-      if(digitalRead(button_pins[0])==0&&digitalRead(button_pins[1])==0){
+      if((digitalRead(button_pins[0])==0&&digitalRead(button_pins[1])==0)&&in_super_low==0){
           analogWrite(pwm_pin,max(value-(value/2),5));
           delay(500);
           analogWrite(pwm_pin,value);
@@ -92,7 +94,7 @@ void loop() {
       }
       //Set dimming values by holding on button pressed until the leds blink and the dimming value is increased step by step
       else{
-        while(digitalRead(button_pins[0])==0||digitalRead(button_pins[1])==0){
+        while((digitalRead(button_pins[0])==0||digitalRead(button_pins[1])==0)&&in_super_low==0){
           timer++;
           delay(10);
           if(timer == 150){
@@ -117,8 +119,9 @@ void loop() {
         timer = 0;
        if(turn ==1){
         int t = (t_s*255)/value;
-        if(value == super_low) t = 0;
+        if(in_super_low == 1) t = 0;
         turn_off(value,t);
+        in_super_low=0;
         on=0;
        }
        turn =1;
@@ -136,6 +139,7 @@ void loop() {
     if(sleep_count == sleep_timer_2){
       int t = (t_s*255)/value;
       turn_off(value,t*5);
+      in_super_low=0;
       on=0;
       sleep_count = 0;
       on_time = 0;
