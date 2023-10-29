@@ -1,5 +1,8 @@
-const int button_pins[2] = { 9, 8 };  //Button input pins
-const int pwm_pin = 3;                //Output PWM pin
+#define USE_ESP32
+
+const int button_pins[2] = { 17, 16 };  //Button input pins
+const int pwm_pin = 5;                //Output PWM pin
+const int pwm_channel = 0;            //Only for ESP32
 
 const int t_s = 3;                                //Base speed for turning light on or of / 255*3ms = 765ms for turning on or off
 const int dims[6] = { 8, 16, 32, 64, 128, 255 };  //selectable dimming values
@@ -20,14 +23,30 @@ int sleep_count = 0;
 int length_dims = 0;
 int length_super_low_dims = 0;
 
+void writePWM(int dutycycle){
+#ifdef USE_ESP32
+  ledcWrite(pwm_channel, dutycycle);
+#else
+  writePWM(0);
+#endif
+}
+
 void setup() {
-  pinMode(pwm_pin, OUTPUT);
+  Serial.begin(115200);
+  Serial.println("Initialize...");
   pinMode(button_pins[0], INPUT_PULLUP);
   pinMode(button_pins[1], INPUT_PULLUP);
+#ifdef USE_ESP32
+  ledcSetup(pwm_channel, 1000, 8);
+  ledcAttachPin(pwm_pin, pwm_channel);
+  ledcWrite(pwm_channel,0);
+#else
+  pinMode(pwm_pin, OUTPUT);
+  writePWM(0);
+#endif
   length_dims = sizeof(dims) / sizeof(dims[0]);
   length_super_low_dims = sizeof(super_low_dims) / sizeof(super_low_dims[0]);
-
-  analogWrite(pwm_pin, 0);
+  Serial.println("Initialization done");
 }
 
 void loop() {
@@ -38,6 +57,7 @@ void loop() {
         timer++;
         delay(10);
         if (timer >= 50) {
+          Serial.println("Long press turn on");
           turn = 0;
           super_low_value = super_low_dims[super_low_count];
           turn_on(super_low_value, 0);
@@ -48,6 +68,7 @@ void loop() {
       //After button is released, check if it was a long press (turn = 0). If not turn leds on as normal.
       timer = 0;
       if (turn == 1) {
+        Serial.println("Normal turn on");
         int t = (t_s * 255) / value;
         turn_on(value, t);
         in_super_low = false;
@@ -59,21 +80,21 @@ void loop() {
       //Set dimming value by presing both buttons at the same time and then click one of them to increase/descrease the value
       if ((digitalRead(button_pins[0]) == 0 && digitalRead(button_pins[1]) == 0)) {
         if (in_super_low) {
-          analogWrite(pwm_pin, 0);
+          writePWM(0);
           delay(500);
-          analogWrite(pwm_pin, super_low_value);
+          writePWM(super_low_value);
           delay(500);
-          analogWrite(pwm_pin, 0);
+          writePWM(0);
           delay(500);
-          analogWrite(pwm_pin, super_low_value);
+          writePWM(super_low_value);
         } else {
-          analogWrite(pwm_pin, max(value - (value / 2), 5));
+          writePWM(max(value - (value / 2), 5));
           delay(500);
-          analogWrite(pwm_pin, value);
+          writePWM(value);
           delay(500);
-          analogWrite(pwm_pin, max(value - (value / 2), 5));
+          writePWM(max(value - (value / 2), 5));
           delay(500);
-          analogWrite(pwm_pin, value);
+          writePWM(value);
         }
         while (1) {
           if (digitalRead(button_pins[0]) == 0 && digitalRead(button_pins[1]) == 0) break;  //Stop setting mode when both buttons are pressed at the same time again
@@ -82,13 +103,13 @@ void loop() {
               super_low_count--;
               if (super_low_count <= 0) super_low_count = 0;
               super_low_value = super_low_dims[super_low_count];
-              analogWrite(pwm_pin, super_low_value);
+              writePWM(super_low_value);
               delay(500);
             } else {
               count--;
               if (count <= 0) count = 0;
               value = dims[count];
-              analogWrite(pwm_pin, value);
+              writePWM(value);
               delay(500);
             }
           } else if (digitalRead(button_pins[1]) == 0) {
@@ -96,13 +117,13 @@ void loop() {
               super_low_count++;
               if (super_low_count >= length_super_low_dims) super_low_count = length_super_low_dims;
               super_low_value = dims[super_low_count];
-              analogWrite(pwm_pin, super_low_value);
+              writePWM(super_low_value);
               delay(500);
             } else {
               count++;
               if (count >= length_dims) count = length_dims;
               value = dims[count];
-              analogWrite(pwm_pin, value);
+              writePWM(value);
               delay(500);
             }
           }
@@ -111,14 +132,14 @@ void loop() {
         }
         if (in_super_low) {
           delay(50);
-          analogWrite(pwm_pin, 0);
+          writePWM(0);
           delay(500);
-          analogWrite(pwm_pin, super_low_value);
+          writePWM(super_low_value);
         } else {
           delay(50);
-          analogWrite(pwm_pin, max(value - (value / 2), 5));
+          writePWM(max(value - (value / 2), 5));
           delay(500);
-          analogWrite(pwm_pin, value);
+          writePWM(value);
         }
       }
       //Set dimming values by holding on button pressed until the leds blink and the dimming value is increased step by step
@@ -127,44 +148,48 @@ void loop() {
           timer++;
           delay(10);
           if (timer == 150) {
+            Serial.print("Dimming");
             if (in_super_low) {
-              analogWrite(pwm_pin, 0);
+              writePWM(0);
               delay(500);
-              analogWrite(pwm_pin, super_low_value);
+              writePWM(super_low_value);
               delay(500);
-              analogWrite(pwm_pin, 0);
+              writePWM(0);
               delay(500);
-              analogWrite(pwm_pin, super_low_value);
+              writePWM(super_low_value);
             } else {
-              analogWrite(pwm_pin, max(value - (value / 2), 5));
+              writePWM(max(value - (value / 2), 5));
               delay(500);
-              analogWrite(pwm_pin, value);
+              writePWM(value);
               delay(500);
-              analogWrite(pwm_pin, max(value - (value / 2), 5));
+              writePWM(max(value - (value / 2), 5));
               delay(500);
-              analogWrite(pwm_pin, value);
+              writePWM(value);
             }
             turn = 0;
           }
           if (timer >= 150) {
+            Serial.print(".");
             if (in_super_low) {
               super_low_count++;
               if (super_low_count >= length_super_low_dims) super_low_count = 0;
               super_low_value = super_low_dims[super_low_count];
-              analogWrite(pwm_pin, super_low_value);
+              writePWM(super_low_value);
               delay(1000);
             } else {
               count++;
               if (count >= length_dims) count = 0;
               value = dims[count];
-              analogWrite(pwm_pin, value);
+              writePWM(value);
               delay(1000);
             }
           }
         }
+        Serial.println();
         //After button is released, check if it was a long press (turn = 0). If not, turn leds off
         timer = 0;
         if (turn == 1) {
+          Serial.println("Turn off");
           if (in_super_low) {
             turn_off(super_low_value, 0);
             in_super_low = false;
@@ -211,10 +236,10 @@ void loop() {
 
 void turn_on(int value, int t) {
   if (t == 0) {
-    analogWrite(pwm_pin, value);
+    writePWM(value);
   } else {
     for (int i = 0; i <= value; i++) {
-      analogWrite(pwm_pin, i);
+      writePWM(i);
       delay(t);
     }
   }
@@ -223,10 +248,10 @@ void turn_on(int value, int t) {
 
 void turn_off(int value, int t) {
   if (t == 0) {
-    analogWrite(pwm_pin, 0);
+    writePWM(0);
   } else {
     for (int i = value; i >= 0; i--) {
-      analogWrite(pwm_pin, i);
+      writePWM(i);
       delay(t);
     }
   }
